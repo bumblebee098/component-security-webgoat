@@ -82,16 +82,6 @@ jobs:
                 anchore/grype sbom:/src/sbom.json \
                 -o json > grype-report.json
 
-            - name: Fail on Critical vulnerabilities
-              run: |
-                CRITICAL=$(cat grype-report.json | grep -i "critical" | wc -l)
-                echo "Critical findings: $CRITICAL"
-
-                if [ "$CRITICAL" -gt 0 ]; then
-                  echo "❌ Critical vulnerabilities found!"
-                  exit 1
-                fi
-
             # SAST scan (Semgrep)
             - name: Run Semgrep SAST scan
               run: |
@@ -109,3 +99,14 @@ jobs:
                   sbom.json
                   grype-report.json
                   semgrep-report.json
+
+            # Critical vulnerabilities check
+            - name: Fail on Critical vulnerabilities
+              run: |
+                CRITICAL=$(cat grype-report.json | grep -i "critical" | wc -l)
+                echo "Critical findings: $CRITICAL"
+
+                if [ "$CRITICAL" -gt 0 ]; then
+                  echo "❌ Critical vulnerabilities found!"
+                  exit 1
+                fi
