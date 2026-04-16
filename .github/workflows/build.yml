@@ -46,3 +46,66 @@ jobs:
                     cache: 'maven'
             -   name: Build with Maven
                 run: mvn --no-transfer-progress verify
+    security:
+        name: Security (SBOM + SAST + Vulnerability Scan)
+        runs-on: ubuntu-latest
+        needs: [ build ]
+
+        steps:
+            - name: Checkout repository
+              uses: actions/checkout@v4.1.6
+
+            # Install Docker tools
+
+            - name: Pull Syft image (SBOM)
+              run: docker pull anchore/syft
+
+            - name: Pull Grype image (vuln scan)
+              run: docker pull anchore/grype
+
+            - name: Pull Semgrep image (SAST)
+              run: docker pull returntocorp/semgrep
+
+            # SBOM generation (Syft)
+            - name: Generate SBOM with Syft
+              run: |
+                docker run --rm \
+                -v "${PWD}:/src" \
+                anchore/syft webgoat/webgoat \
+                -o cyclonedx-json > sbom.json
+
+            # Vulnerability scan (Grype)
+            - name: Run Grype scan
+              run: |
+                docker run --rm \
+                -v "${PWD}:/src" \
+                anchore/grype sbom:sbom.json \
+                -o json > grype-report.json
+
+            - name: Fail on Critical vulnerabilities
+              run: |
+                CRITICAL=$(cat grype-report.json | grep -i "critical" | wc -l)
+                echo "Critical findings: $CRITICAL"
+
+                if [ "$CRITICAL" -gt 0 ]; then
+                  echo "❌ Critical vulnerabilities found!"
+                  exit 1
+                fi
+
+            # SAST scan (Semgrep)
+            - name: Run Semgrep SAST scan
+              run: |
+                docker run --rm \
+                -v "${PWD}:/src" \
+                returntocorp/semgrep \
+                semgrep scan --config auto /src --json > semgrep-report.json
+
+            # Upload reports as artifacts
+            - name: Upload security reports
+              uses: actions/upload-artifact@v4
+              with:
+                name: security-reports
+                path: |
+                  sbom.json
+                  grype-report.json
+                  semgrep-report.json
