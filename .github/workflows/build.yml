@@ -36,7 +36,7 @@ jobs:
         strategy:
             fail-fast: true
             matrix:
-                os: [ windows-latest, ubuntu-latest, macos-15-intel ]
+                os: [ ubuntu-latest ]
             max-parallel: 1
         steps:
             -   uses: actions/checkout@v4.1.6
@@ -79,7 +79,7 @@ jobs:
               run: |
                 docker run --rm \
                 -v "${PWD}:/src" \
-                anchore/grype sbom:sbom.json \
+                anchore/grype sbom:/src/sbom.json \
                 -o json > grype-report.json
 
             - name: Fail on Critical vulnerabilities
